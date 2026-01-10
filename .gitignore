@@ -1,0 +1,42 @@
+# ---------- Python ----------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# ---------- Virtual Environment ----------
+venv/
+.env/
+
+# ---------- OS / Editor ----------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ---------- Model / Cache ----------
+.cache/
+huggingface/
+hf_cache/
+*.bin
+*.safetensors
+
+# ---------- FAISS / Vector DB ----------
+*.faiss
+*.index
+
+# ---------- Uploaded Documents ----------
+data/college_docs/*.pdf
+
+# ---------- Build / Distribution ----------
+build/
+dist/
+*.egg-info/
+
+# ---------- Jupyter ----------
+.ipynb_checkpoints/
+
+# ---------- Temporary Files ----------
+tmp/
+temp/
