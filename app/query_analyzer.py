@@ -1,10 +1,16 @@
 from .rag import load_rag_components
 
+# Load retriever and local LLM once
 retriever, llm = load_rag_components()
 
 
 def handle_query(question: str):
-    # Step 1: Retrieve relevant chunks ONLY from uploaded PDFs
+    """
+    Handles user queries by retrieving relevant document chunks
+    and generating a strictly document-grounded answer.
+    """
+
+    # 1. Retrieve relevant document chunks
     docs = retriever.get_relevant_documents(question)
 
     if not docs:
@@ -13,23 +19,24 @@ def handle_query(question: str):
             "answer": "The information is not specified in the provided documents."
         }
 
-    # Step 2: Combine retrieved document text
-    context = " ".join(doc.page_content for doc in docs)
+    # 2. Use only top-k chunks to avoid noise
+    context = " ".join(doc.page_content for doc in docs[:2])
     context = " ".join(context.split())
 
-    # Step 3: Strict, document-grounded prompt
+    # 3. General, domain-independent extractive prompt
     prompt = f"""
-You are a document-grounded question answering assistant.
+You are a document-based question answering assistant.
 
-Rules:
-- Answer ONLY using the information present in the context.
-- Do NOT use outside knowledge or assumptions.
-- Do NOT give examples, explanations, or scenarios.
-- If the answer is not present in the context, reply exactly:
+Instructions:
+- Use ONLY the information present in the context.
+- Do NOT add outside knowledge.
+- Do NOT summarize or paraphrase.
+- Extract and return the COMPLETE sentence(s) from the context
+  that directly answer the question.
+- If the answer is not explicitly present, respond exactly with:
   "The information is not specified in the provided documents."
-- Answer in at most 2 sentences.
 
-Context (from uploaded documents only):
+Context:
 {context}
 
 Question:
@@ -38,16 +45,13 @@ Question:
 Answer:
 """
 
-    # Step 4: Get LLM response
+    # 4. Invoke the local LLM
     response = llm.invoke(prompt)
-    answer = response if isinstance(response, str) else response.content
-    answer = answer.strip()
+    answer = response.content.strip()
 
-    # Step 5: Hard limit to 2 sentences (safety guard)
-    sentences = answer.split(".")
-    answer = ".".join(sentences[:2]).strip()
-    if answer and not answer.endswith("."):
-        answer += "."
+    # 5. Final safety validation
+    if not answer or len(answer) < 10:
+        answer = "The information is not specified in the provided documents."
 
     return {
         "question": question,
