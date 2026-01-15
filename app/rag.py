@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
+
 try:
     from langchain.text_splitter import RecursiveCharacterTextSplitter
 except Exception:
@@ -20,14 +21,14 @@ try:
 except Exception:
     from langchain_core.retrievers import BaseRetriever
 
-# ---------- Local LLM (Ollama) ----------
-from langchain_ollama import ChatOllama
+# ---------- Groq LLM ----------
+from langchain_groq import ChatGroq
 
 
 def load_rag_components():
     """
     Loads documents, builds FAISS retriever with local embeddings,
-    and initializes a local LLM (Ollama).
+    and initializes a Groq-hosted LLM.
     Returns (retriever, llm).
     """
 
@@ -75,16 +76,13 @@ def load_rag_components():
 
         logger.info("FAISS retriever created successfully.")
 
-    # -------- 5. Local LLM (Ollama) --------
-    llm = ChatOllama(
-        model="phi",
-        temperature=0
+    # -------- 5. Groq LLM --------
+    llm = ChatGroq(
+        model="llama3-8b-8192",
+        temperature=0.2
     )
 
-    # Ensure the returned retriever exposes a synchronous
-    # `get_relevant_documents(query)` method expected by the rest
-    # of the code. Some retriever implementations only expose
-    # `_get_relevant_documents` or async variants.
+    # -------- 6. Retriever adapter (unchanged) --------
     def _wrap_retriever(r):
         if hasattr(r, "get_relevant_documents"):
             return r
@@ -99,37 +97,41 @@ def load_rag_components():
                 super().__init__(inner=inner)
 
             def get_relevant_documents(self, query, **kwargs):
-                # Prefer direct method if available
                 if hasattr(self.inner, "get_relevant_documents"):
                     return self.inner.get_relevant_documents(query, **kwargs)
 
-                # Fall back to private sync implementation
                 if hasattr(self.inner, "_get_relevant_documents"):
                     try:
                         return self.inner._get_relevant_documents(query, **kwargs)
                     except TypeError:
-                        # Some implementations expect a run_manager kw-only arg
-                        return self.inner._get_relevant_documents(query, run_manager=None, **kwargs)
+                        return self.inner._get_relevant_documents(
+                            query, run_manager=None, **kwargs
+                        )
 
-                # Fall back to async method
                 if hasattr(self.inner, "aget_relevant_documents"):
                     import asyncio
                     try:
-                        return asyncio.run(self.inner.aget_relevant_documents(query, **kwargs))
+                        return asyncio.run(
+                            self.inner.aget_relevant_documents(query, **kwargs)
+                        )
                     except TypeError:
-                        try:
-                            return asyncio.run(self.inner.aget_relevant_documents(query, run_manager=None, **kwargs))
-                        except RuntimeError:
-                            loop = asyncio.get_event_loop()
-                            return loop.run_until_complete(self.inner.aget_relevant_documents(query, run_manager=None, **kwargs))
+                        return asyncio.run(
+                            self.inner.aget_relevant_documents(
+                                query, run_manager=None, **kwargs
+                            )
+                        )
                     except RuntimeError:
-                        # If event loop is already running, run in it
                         loop = asyncio.get_event_loop()
-                        return loop.run_until_complete(self.inner.aget_relevant_documents(query, **kwargs))
+                        return loop.run_until_complete(
+                            self.inner.aget_relevant_documents(
+                                query, run_manager=None, **kwargs
+                            )
+                        )
 
-                raise AttributeError("inner retriever has no method to get relevant documents")
+                raise AttributeError(
+                    "inner retriever has no method to get relevant documents"
+                )
 
-            # Provide the abstract/low-level methods expected by BaseRetriever
             def _get_relevant_documents(self, query, **kwargs):
                 return self.get_relevant_documents(query, **kwargs)
 
