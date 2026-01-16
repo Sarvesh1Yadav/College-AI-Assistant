@@ -78,7 +78,7 @@ def load_rag_components():
 
     # -------- 5. Groq LLM --------
     llm = ChatGroq(
-        model="llama3-8b-8192",
+        model="llama-3.1-8b-instant",
         temperature=0.2
     )
 
