@@ -6,7 +6,7 @@ retriever, llm = load_rag_components()
 def handle_query(question: str):
 
     # -------- 1. Retrieve --------
-    docs = retriever.get_relevant_documents(question)
+    docs = retriever.invoke(question)
 
     if not docs:
         return {
