@@ -6,7 +6,7 @@ retriever, llm = load_rag_components()
 def handle_query(question: str):
 
     # -------- 1. Retrieve --------
-    docs = retriever.invoke(question)
+    docs = retriever.invoke(question) or []
 
     if not docs:
         return {
@@ -19,11 +19,10 @@ def handle_query(question: str):
     for i, d in enumerate(docs):
         print(f"\nChunk {i+1}:\n{d.page_content[:400]}")
 
-    # -------- 2. Use FULL retrieved context --------
+    # -------- 2. Preserve formatting --------
     context = "\n\n".join(doc.page_content for doc in docs)
-    context = " ".join(context.split())
 
-    # -------- 3. Stronger Extraction Prompt --------
+    # -------- 3. Extraction Prompt --------
     prompt = f"""
 You are a strict legal document extraction assistant.
 
