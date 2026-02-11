@@ -49,7 +49,7 @@ def load_rag_components():
 
     # -------- 3. Better Embedding Model --------
     embeddings = HuggingFaceEmbeddings(
-        model_name="intfloat/e5-large-v2"
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
     # -------- 4. FAISS Vector DB --------
