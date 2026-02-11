@@ -1,16 +1,11 @@
 from .rag import load_rag_components
 
-# Load retriever and local LLM once
 retriever, llm = load_rag_components()
 
 
 def handle_query(question: str):
-    """
-    Handles user queries by retrieving relevant document chunks
-    and generating a strictly document-grounded answer.
-    """
 
-    # 1. Retrieve relevant document chunks
+    # -------- 1. Retrieve --------
     docs = retriever.get_relevant_documents(question)
 
     if not docs:
@@ -19,22 +14,26 @@ def handle_query(question: str):
             "answer": "The information is not specified in the provided documents."
         }
 
-    # 2. Use only top-k chunks to avoid noise
-    context = " ".join(doc.page_content for doc in docs[:2])
+    # -------- DEBUG: Print retrieved chunks --------
+    print("\n--- Retrieved Chunks ---")
+    for i, d in enumerate(docs):
+        print(f"\nChunk {i+1}:\n{d.page_content[:400]}")
+
+    # -------- 2. Use FULL retrieved context --------
+    context = "\n\n".join(doc.page_content for doc in docs)
     context = " ".join(context.split())
 
-    # 3. General, domain-independent extractive prompt
+    # -------- 3. Stronger Extraction Prompt --------
     prompt = f"""
-You are a document-based question answering assistant.
+You are a strict legal document extraction assistant.
 
-Instructions:
-- Use ONLY the information present in the context.
-- Do NOT add outside knowledge.
-- Do NOT summarize or paraphrase.
-- Extract and return the COMPLETE sentence(s) from the context
-  that directly answer the question.
-- If the answer is not explicitly present, respond exactly with:
-  "The information is not specified in the provided documents."
+Rules:
+1. Answer ONLY using exact sentences from the context.
+2. Do NOT paraphrase.
+3. Do NOT explain.
+4. If multiple sentences are relevant, return ALL of them.
+5. If not explicitly found, respond exactly:
+   "The information is not specified in the provided documents."
 
 Context:
 {context}
@@ -45,12 +44,15 @@ Question:
 Answer:
 """
 
-    # 4. Invoke the local LLM
     response = llm.invoke(prompt)
     answer = response.content.strip()
 
-    # 5. Final safety validation
-    if not answer or len(answer) < 10:
+    # -------- 4. Safety Validation --------
+    if (
+        not answer
+        or answer.lower().startswith("the information is not specified")
+        or len(answer) < 15
+    ):
         answer = "The information is not specified in the provided documents."
 
     return {
