@@ -90,6 +90,6 @@ def load_rag_components():
 
     # ---------- GEMINI LLM ----------
     genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    gemini_model = genai.GenerativeModel("gemini-2.5-pro")
+    gemini_model = genai.GenerativeModel("models/gemini-2.5-pro")
 
     return hybrid_retriever, groq_llm, gemini_model
