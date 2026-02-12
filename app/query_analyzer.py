@@ -50,8 +50,8 @@ Question:
 
     return {
         "answer": answer,
-        "confidence": f"{confidence}%",
-        "memory_length": len(conversation_memory)
+        "doc_type": doc_type,
+        "classification": doc_type
     }
 
 
@@ -60,6 +60,6 @@ def general_answer(question):
     conversation_memory.append({"q": question, "a": fallback.content})
     return {
         "answer": fallback.content,
-        "confidence": "General Knowledge Mode",
-        "memory_length": len(conversation_memory)
+        "doc_type": "General Knowledge",
+        "classification": doc_type
     }
