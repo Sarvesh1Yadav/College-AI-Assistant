@@ -12,9 +12,8 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_groq import ChatGroq
 
-import google.generativeai as genai
 
-# ---------- LOAD DOCUMENTS WITH TAGS ----------
+# ---------- LOAD DOCUMENTS ----------
 
 def load_documents():
     docs = []
@@ -49,7 +48,7 @@ def load_rag_components():
 
     chunks = splitter.split_documents(docs)
 
-    # ---------- VECTOR EMBEDDING ----------
+    # ---------- EMBEDDINGS ----------
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -77,7 +76,6 @@ def load_rag_components():
         bm25_docs = [doc for _, doc in top_bm25]
 
         combined = vector_docs + bm25_docs
-
         unique = {doc.page_content: doc for doc in combined}.values()
 
         return list(unique)
@@ -88,8 +86,4 @@ def load_rag_components():
         temperature=0.0
     )
 
-    # ---------- GEMINI LLM ----------
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    gemini_model = genai.GenerativeModel("models/gemini-2.5-pro")
-
-    return hybrid_retriever, groq_llm, gemini_model
+    return hybrid_retriever, groq_llm
