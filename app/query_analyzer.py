@@ -1,6 +1,6 @@
 from .rag import load_rag_components
 
-retriever, groq_llm, gemini_model = load_rag_components()
+retriever, groq_llm = load_rag_components()
 
 conversation_memory = []
 
@@ -27,10 +27,9 @@ def handle_query(question):
     if not context:
         return general_answer(question)
 
-    # ---------- GROQ PRIMARY ----------
     prompt = f"""
 Answer strictly using context.
-If not found respond: NOT_FOUND
+If answer not found respond exactly: NOT_FOUND
 
 Context:
 {context}
@@ -39,17 +38,10 @@ Question:
 {question}
 """
 
-    groq_response = groq_llm.invoke(prompt)
-    answer = groq_response.content.strip()
+    response = groq_llm.invoke(prompt)
+    answer = response.content.strip()
 
-    # ---------- GEMINI VALIDATION ----------
-    gemini_check = gemini_model.generate_content(
-        f"Is this answer correct based on context? Answer YES or NO.\n\n{answer}"
-    )
-
-    validation = gemini_check.text.strip().upper()
-
-    if "NO" in validation or answer == "NOT_FOUND":
+    if answer == "NOT_FOUND" or len(answer) < 15:
         return general_answer(question)
 
     confidence = min(95, 60 + len(docs)*5)
