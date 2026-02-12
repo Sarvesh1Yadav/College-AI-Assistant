@@ -1,60 +1,73 @@
 from .rag import load_rag_components
 
-retriever, llm = load_rag_components()
+retriever, groq_llm, gemini_model = load_rag_components()
+
+conversation_memory = []
 
 
-def handle_query(question: str):
+def classify_query(question):
+    q = question.lower()
+    if "ragging" in q or "ugc" in q:
+        return "ugc"
+    elif "placement" in q or "dream" in q:
+        return "placement"
+    elif "cgpa" in q or "semester" in q:
+        return "msc"
+    return None
 
-    # -------- 1. Retrieve from documents --------
-    docs = retriever.invoke(question) or []
 
-    if docs:
-        context = "\n\n".join(doc.page_content for doc in docs)
+def handle_query(question):
 
-        prompt = f"""
-You are a strict document-based assistant.
+    doc_type = classify_query(question)
 
-Rules:
-- Answer ONLY using the context.
-- Do NOT use outside knowledge.
-- If answer is not explicitly in context, respond exactly:
-  "NOT_FOUND"
+    docs = retriever(question, doc_type)
+
+    context = "\n\n".join(doc.page_content for doc in docs[:6])
+
+    if not context:
+        return general_answer(question)
+
+    # ---------- GROQ PRIMARY ----------
+    prompt = f"""
+Answer strictly using context.
+If not found respond: NOT_FOUND
 
 Context:
 {context}
 
 Question:
 {question}
-
-Answer:
 """
 
-        response = llm.invoke(prompt)
-        answer = response.content.strip()
+    groq_response = groq_llm.invoke(prompt)
+    answer = groq_response.content.strip()
 
-        if answer and answer != "NOT_FOUND":
-            return {
-                "question": question,
-                "answer": answer
-            }
+    # ---------- GEMINI VALIDATION ----------
+    gemini_check = gemini_model.generate_content(
+        f"Is this answer correct based on context? Answer YES or NO.\n\n{answer}"
+    )
 
-    # -------- 2. Fallback to General Knowledge --------
-    general_prompt = f"""
-You are a knowledgeable academic assistant.
+    validation = gemini_check.text.strip().upper()
 
-The question was not found in the official documents.
+    if "NO" in validation or answer == "NOT_FOUND":
+        return general_answer(question)
 
-Provide a clear, helpful, and professional general answer.
+    confidence = min(95, 60 + len(docs)*5)
 
-Question:
-{question}
-
-Answer:
-"""
-
-    response = llm.invoke(general_prompt)
+    conversation_memory.append({"q": question, "a": answer})
 
     return {
-        "question": question,
-        "answer": response.content.strip()
+        "answer": answer,
+        "confidence": f"{confidence}%",
+        "memory_length": len(conversation_memory)
+    }
+
+
+def general_answer(question):
+    fallback = groq_llm.invoke(question)
+    conversation_memory.append({"q": question, "a": fallback.content})
+    return {
+        "answer": fallback.content,
+        "confidence": "General Knowledge Mode",
+        "memory_length": len(conversation_memory)
     }
