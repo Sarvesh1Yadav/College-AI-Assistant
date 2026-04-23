@@ -52,8 +52,9 @@
 async function ask() {
     const question = document.getElementById("question").value;
 
-    const response = await fetch("YOUR_BACKEND_URL/ask?question=" + encodeURIComponent(question), {
-        method: "POST"
+    const response = await fetch("https://pulp-crouton-thrill.ngrok-free.dev/ask?question=" + encodeURIComponent(question), {
+    method: "POST"
+});
     });
 
     const data = await response.json();
