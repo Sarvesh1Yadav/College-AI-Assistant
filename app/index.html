@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College AI Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['"Space Grotesk"', 'sans-serif'],
+                        body: ['"DM Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* ========== CSS Variables ========== */
+        :root {
+            --bg-primary: #0B0D17;
+            --bg-secondary: #131620;
+            --bg-tertiary: #1A1E2E;
+            --bg-elevated: #212640;
+            --accent: #E8913A;
+            --accent-light: #F0A85C;
+            --accent-dark: #C47520;
+            --accent-glow: rgba(232, 145, 58, 0.12);
+            --accent-glow-strong: rgba(232, 145, 58, 0.25);
+            --green: #34D399;
+            --green-dim: rgba(52, 211, 153, 0.12);
+            --text-primary: #F0EDE8;
+            --text-secondary: #9095A8;
+            --text-muted: #565B70;
+            --border: #252840;
+            --border-light: #2E3350;
+            --user-bubble: #1E1A14;
+            --user-bubble-border: #3D3420;
+            --ai-bubble: #151825;
+            --ai-bubble-border: #252A40;
+        }
+
+        /* ========== Base ========== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        ::selection {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-light);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* ========== Background Orbs ========== */
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(100px);
+        }
+        .bg-orb-1 {
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(232,145,58,0.10) 0%, transparent 70%);
+            top: -10%; left: -10%;
+            animation: orbFloat1 25s ease-in-out infinite;
+        }
+        .bg-orb-2 {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, rgba(52,211,153,0.06) 0%, transparent 70%);
+            bottom: -5%; right: -8%;
+            animation: orbFloat2 30s ease-in-out infinite;
+        }
+        .bg-orb-3 {
+            width: 400px; height: 400px;
+            background: radial-gradient(circle, rgba(232,145,58,0.05) 0%, transparent 70%);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation: orbFloat3 20s ease-in-out infinite;
+        }
+
+        @keyframes orbFloat1 {
+            0%, 100% { transform: translate(0, 0); }
+            33% { transform: translate(80px, 60px); }
+            66% { transform: translate(-40px, 100px); }
+        }
+        @keyframes orbFloat2 {
+            0%, 100% { transform: translate(0, 0); }
+            33% { transform: translate(-60px, -80px); }
+            66% { transform: translate(50px, -40px); }
+        }
+        @keyframes orbFloat3 {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.3); }
+        }
+
+        /* ========== Noise Overlay ========== */
+        .noise-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0.025;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            background-repeat: repeat;
+            background-size: 256px 256px;
+        }
+
+        /* ========== Navigation ========== */
+        .main-nav {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            z-index: 100;
+            background: rgba(11, 13, 23, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.3s ease, background 0.3s ease;
+        }
+        .main-nav.scrolled {
+            border-bottom-color: var(--border);
+            background: rgba(11, 13, 23, 0.9);
+        }
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+        .nav-logo-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: #fff;
+            font-weight: 700;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .nav-logo-text {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 17px;
+            letter-spacing: -0.02em;
+        }
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-link {
+            padding: 8px 16px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-family: inherit;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+        .nav-link.active {
+            color: var(--accent);
+        }
+
+        /* ========== Chat Section ========== */
+        .chat-section {
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            padding-top: 64px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-container {
+            flex: 1;
+            max-width: 780px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 16px;
+        }
+
+        /* ========== Welcome Card ========== */
+        .welcome-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 60px 20px 40px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+        .welcome-icon-wrap {
+            position: relative;
+            width: 88px; height: 88px;
+            margin-bottom: 28px;
+        }
+        .welcome-icon {
+            width: 88px; height: 88px;
+            border-radius: 24px;
+            background: linear-gradient(145deg, var(--accent), var(--accent-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            color: #fff;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 8px 32px rgba(232,145,58,0.2);
+        }
+        .welcome-ring {
+            position: absolute;
+            inset: -8px;
+            border-radius: 28px;
+            border: 1.5px solid rgba(232,145,58,0.25);
+            animation: ringPulse 3s ease-out infinite;
+        }
+        .welcome-ring:nth-child(2) { inset: -16px; border-radius: 32px; animation-delay: 1s; border-color: rgba(232,145,58,0.12); }
+        .welcome-ring:nth-child(3) { inset: -24px; border-radius: 36px; animation-delay: 2s; border-color: rgba(232,145,58,0.06); }
+        @keyframes ringPulse {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1.15); }
+        }
+        .welcome-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .welcome-subtitle {
+            color: var(--text-secondary);
+            font-size: 15px;
+            line-height: 1.6;
+            max-width: 460px;
+            margin-bottom: 36px;
+        }
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            max-width: 560px;
+        }
+        .quick-chip {
+            padding: 10px 18px;
+            border-radius: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .quick-chip i {
+            color: var(--accent);
+            font-size: 12px;
+        }
+        .quick-chip:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-light);
+            color: var(--text-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        /* ========== Chat Messages ========== */
+        .message-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            animation: messageIn 0.35s ease-out;
+        }
+        .message-row.user { justify-content: flex-end; }
+        .message-row.ai { justify-content: flex-start; }
+
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(14px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-avatar {
+            width: 32px; height: 32px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .message-avatar.ai-avatar {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: #fff;
+        }
+        .message-avatar.user-avatar {
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+        }
+        .message-bubble {
+            max-width: 75%;
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.7;
+            letter-spacing: 0.01em;
+        }
+        .message-row.user .message-bubble {
+            background: var(--user-bubble);
+            border: 1px solid var(--user-bubble-border);
+            border-bottom-right-radius: 4px;
+            color: var(--text-primary);
+        }
+        .message-row.ai .message-bubble {
+            background: var(--ai-bubble);
+            border: 1px solid var(--ai-bubble-border);
+            border-bottom-left-radius: 4px;
+            color: var(--text-primary);
+        }
+        .message-bubble p { margin-bottom: 8px; }
+        .message-bubble p:last-child { margin-bottom: 0; }
+        .message-bubble strong { color: var(--accent-light); font-weight: 600; }
+        .message-bubble ul, .message-bubble ol {
+            padding-left: 20px;
+            margin: 8px 0;
+        }
+        .message-bubble li { margin-bottom: 4px; }
+        .message-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            padding: 0 4px;
+        }
+        .message-row.user .message-time { text-align: right; }
+
+        /* ========== Typing Indicator ========== */
+        .typing-indicator {
+            display: none;
+            gap: 12px;
+            margin-bottom: 20px;
+            animation: messageIn 0.3s ease-out;
+        }
+        .typing-indicator.visible { display: flex; }
+        .typing-dots {
+            display: flex;
+            gap: 5px;
+            padding: 16px 20px;
+            background: var(--ai-bubble);
+            border: 1px solid var(--ai-bubble-border);
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+        }
+        .typing-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: dotBounce 1.4s ease-in-out infinite;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes dotBounce {
+            0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+            30% { opacity: 1; transform: translateY(-6px); }
+        }
+
+        /* ========== Input Area ========== */
+        .input-area {
+            position: sticky;
+            bottom: 0;
+            padding: 16px 0 24px;
+            background: linear-gradient(to top, var(--bg-primary) 60%, transparent);
+        }
+        .input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 8px 8px 8px 20px;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        .input-wrapper:focus-within {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 24px rgba(0,0,0,0.2);
+        }
+        .chat-input {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            line-height: 1.5;
+            resize: none;
+            max-height: 120px;
+            min-height: 24px;
+            padding: 6px 0;
+        }
+        .chat-input::placeholder { color: var(--text-muted); }
+        .send-btn {
+            width: 42px; height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            border: none;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .send-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(232,145,58,0.3);
+        }
+        .send-btn:active:not(:disabled) { transform: scale(0.95); }
+        .send-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .input-hint {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .input-hint kbd {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 11px;
+        }
+
+        /* ========== Divider ========== */
+        .section-divider {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 10;
+        }
+        .section-divider hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(to right, transparent, var(--border-light), transparent);
+        }
+
+        /* ========== FAQ Section ========== */
+        .faq-section {
+            position: relative;
+            z-index: 10;
+            padding: 80px 24px 60px;
+        }
+        .faq-inner {
+            max-width: 780px;
+            margin: 0 auto;
+        }
+        .faq-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        .faq-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(232,145,58,0.15);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 20px;
+        }
+        .faq-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 12px;
+        }
+        .faq-subtitle {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+
+        /* ========== FAQ Filters ========== */
+        .faq-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 8px 18px;
+            border-radius: 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .filter-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        .filter-btn.active {
+            background: var(--accent-glow-strong);
+            border-color: rgba(232,145,58,0.3);
+            color: var(--accent);
+        }
+
+        /* ========== FAQ Accordion ========== */
+        .faq-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        .faq-item:hover {
+            border-color: var(--border-light);
+        }
+        .faq-item.active {
+            border-color: var(--border-light);
+            border-left-color: var(--accent);
+            background: var(--bg-tertiary);
+        }
+        .faq-question {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .faq-question-text {
+            font-size: 14.5px;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1.5;
+            flex: 1;
+        }
+        .faq-question-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .faq-category-tag {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .faq-category-tag.academic { background: rgba(96,165,250,0.12); color: #60A5FA; }
+        .faq-category-tag.placement { background: var(--green-dim); color: var(--green); }
+        .faq-category-tag.general { background: rgba(251,191,36,0.12); color: #FBBF24; }
+        .faq-category-tag.fees { background: rgba(244,114,182,0.12); color: #F472B6; }
+
+        .faq-chevron {
+            width: 28px; height: 28px;
+            border-radius: 8px;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        .faq-item.active .faq-chevron {
+            transform: rotate(180deg);
+            color: var(--accent);
+            background: var(--accent-glow);
+        }
+        .faq-answer-wrap {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .faq-item.active .faq-answer-wrap {
+            max-height: 400px;
+        }
+        .faq-answer {
+            padding: 0 20px 20px;
+            font-size: 14px;
+            line-height: 1.75;
+            color: var(--text-secondary);
+        }
+        .faq-ask-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 14px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            background: var(--accent-glow);
+            border: 1px solid rgba(232,145,58,0.15);
+            color: var(--accent);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .faq-ask-btn:hover {
+            background: var(--accent-glow-strong);
+            border-color: rgba(232,145,58,0.3);
+        }
+
+        /* ========== Error Message ========== */
+        .error-bubble {
+            background: rgba(239, 68, 68, 0.08) !important;
+            border-color: rgba(239, 68, 68, 0.2) !important;
+            color: #FCA5A5 !important;
+        }
+
+        /* ========== Clear Chat Button ========== */
+        .clear-chat-btn {
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .clear-chat-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border-color: var(--border-light);
+        }
+
+        /* ========== Footer ========== */
+        .main-footer {
+            position: relative;
+            z-index: 10;
+            border-top: 1px solid var(--border);
+            padding: 32px 24px;
+            text-align: center;
+        }
+        .footer-inner {
+            max-width: 780px;
+            margin: 0 auto;
+        }
+        .footer-text {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .footer-text a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .footer-text a:hover { text-decoration: underline; }
+
+        /* ========== Toast ========== */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            padding: 12px 20px;
+            border-radius: 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+            font-size: 13px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            animation: toastIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .toast.error { border-color: rgba(239,68,68,0.3); }
+        .toast.error i { color: #EF4444; }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateX(40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes toastOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(40px); }
+        }
+
+        /* ========== Scroll to Chat Button ========== */
+        .scroll-to-chat {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 90;
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-light);
+            color: var(--text-secondary);
+            font-size: 16px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        }
+        .scroll-to-chat.visible { display: flex; }
+        .scroll-to-chat:hover {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        /* ========== Reveal Animation ========== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ========== Responsive ========== */
+        @media (max-width: 640px) {
+            .welcome-title { font-size: 22px; }
+            .welcome-subtitle { font-size: 14px; }
+            .welcome-card { padding: 40px 12px 28px; }
+            .quick-actions { gap: 8px; }
+            .quick-chip { font-size: 12px; padding: 8px 14px; }
+            .message-bubble { max-width: 88%; }
+            .faq-title { font-size: 24px; }
+            .faq-filters { gap: 6px; }
+            .filter-btn { font-size: 12px; padding: 6px 14px; }
+            .faq-question { padding: 16px; }
+            .faq-answer { padding: 0 16px 16px; }
+            .nav-logo-text { display: none; }
+            .faq-category-tag { display: none; }
+        }
+
+        /* ========== Reduced Motion ========== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+    <div class="noise-overlay"></div>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Navigation -->
+    <nav class="main-nav" id="mainNav">
+        <div class="nav-inner">
+            <a href="#" class="nav-logo" onclick="scrollToChat(); return false;">
+                <div class="nav-logo-icon">CA</div>
+                <span class="nav-logo-text">College AI Assistant</span>
+            </a>
+            <div class="nav-links">
+                <a href="#chat" class="nav-link active" id="navChat" onclick="scrollToChat(); return false;">
+                    <i class="fas fa-comment-dots" style="margin-right:6px;font-size:13px;"></i>Chat
+                </a>
+                <a href="#faq" class="nav-link" id="navFaq" onclick="scrollToFAQ(); return false;">
+                    <i class="fas fa-circle-question" style="margin-right:6px;font-size:13px;"></i>FAQ
+                </a>
+                <button class="clear-chat-btn" id="clearChatBtn" title="Clear conversation">
+                    <i class="fas fa-rotate-right" style="font-size:11px;"></i>
+                    <span>Reset</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Chat Section -->
+    <section class="chat-section" id="chat">
+        <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+                <!-- Welcome Card -->
+                <div class="welcome-card" id="welcomeCard">
+                    <div class="welcome-icon-wrap">
+                        <div class="welcome-ring"></div>
+                        <div class="welcome-ring"></div>
+                        <div class="welcome-ring"></div>
+                        <div class="welcome-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                    </div>
+                    <h1 class="welcome-title">How can I help you today?</h1>
+                    <p class="welcome-subtitle">
+                        Ask me anything about college rules, placement policies, academic procedures, hostel facilities, scholarships, and more.
+                    </p>
+                    <div class="quick-actions">
+                        <button class="quick-chip" onclick="sendQuickAction(this)">
+                            <i class="fas fa-briefcase"></i>
+                            Placement eligibility criteria
+                        </button>
+                        <button class="quick-chip" onclick="sendQuickAction(this)">
+                            <i class="fas fa-calendar-check"></i>
+                            Attendance requirements
+                        </button>
+                        <button class="quick-chip" onclick="sendQuickAction(this)">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            Fee refund policy
+                        </button>
+                        <button class="quick-chip" onclick="sendQuickAction(this)">
+                            <i class="fas fa-book-open"></i>
+                            Library membership process
+                        </button>
+                        <button class="quick-chip" onclick="sendQuickAction(this)">
+                            <i class="fas fa-hospital"></i>
+                            Hostel room allocation
+                        </button>
+                        <button class="quick-chip" onclick="sendQuickAction(this)">
+                            <i class="fas fa-award"></i>
+                            Scholarship application process
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages render here -->
+                <div id="messagesContainer"></div>
+
+                <!-- Typing Indicator -->
+                <div class="typing-indicator" id="typingIndicator">
+                    <div class="message-avatar ai-avatar">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea
+                        class="chat-input"
+                        id="chatInput"
+                        placeholder="Ask about college rules, placement, academics..."
+                        rows="1"
+                        aria-label="Type your question"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn" aria-label="Send message" disabled>
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                </div>
+                <p class="input-hint">Press <kbd>Enter</kbd> to send, <kbd>Shift + Enter</kbd> for new line</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Divider -->
+    <div class="section-divider"><hr></div>
+
+    <!-- FAQ Section -->
+    <section class="faq-section" id="faq">
+        <div class="faq-inner">
+            <div class="faq-header reveal">
+                <div class="faq-badge">
+                    <i class="fas fa-lightbulb"></i>
+                    Knowledge Base
+                </div>
+                <h2 class="faq-title">Frequently Asked Questions</h2>
+                <p class="faq-subtitle">Quick answers to common queries — click any question to learn more, or ask it directly to the AI.</p>
+            </div>
+
+            <div class="faq-filters reveal">
+                <button class="filter-btn active" data-filter="all">All Questions</button>
+                <button class="filter-btn" data-filter="academic">Academic</button>
+                <button class="filter-btn" data-filter="placement">Placement</button>
+                <button class="filter-btn" data-filter="general">General</button>
+                <button class="filter-btn" data-filter="fees">Fees</button>
+            </div>
+
+            <div id="faqList">
+                <!-- FAQ items rendered by JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="footer-inner">
+            <p class="footer-text">
+                College AI Assistant — Built with RAG &amp; LLM Technology.
+                Powered by <a href="#">Groq</a>.
+            </p>
+        </div>
+    </footer>
+
+    <!-- Scroll to Chat Button -->
+    <button class="scroll-to-chat" id="scrollToChatBtn" aria-label="Scroll to chat">
+        <i class="fas fa-comment-dots"></i>
+    </button>
+
+    <script>
+    /* ========================================
+       FAQ Data
+       ======================================== */
+    const faqData = [
+        {
+            category: 'academic',
+            question: 'What is the minimum attendance requirement for appearing in exams?',
+            answer: 'Students must maintain a minimum of 75% attendance in each subject to be eligible for the end-semester examination. Condonation up to 65% may be granted on medical grounds with proper documentation submitted to the Head of Department within 7 days of returning. Medical certificates must be from recognized practitioners and approved by the college medical officer.'
+        },
+        {
+            category: 'academic',
+            question: 'How are internal assessment marks calculated?',
+            answer: 'Internal assessment carries 40 marks per subject, typically distributed as: Two mid-semester tests (15 marks each) and assignments/quizzes (10 marks). The average of the better two out of three tests is considered. Attendance also contributes to the internal component — students above 90% attendance receive a 5-mark bonus. The exact distribution may vary slightly between departments.'
+        },
+        {
+            category: 'academic',
+            question: 'What is the process for applying for backlog (re-exam)?',
+            answer: 'Students with backlogs can apply for re-examination through the exam portal within the specified dates (usually 2 weeks before the exam). The application requires payment of the re-exam fee per subject. Students must fill the exam form, upload a recent photograph, and take a printout of the hall ticket. Supplementary exams are generally held within 45 days of the regular result declaration.'
+        },
+        {
+            category: 'placement',
+            question: 'What is the placement process for final year students?',
+            answer: 'The placement process typically begins in the 7th semester. Steps include: (1) Register on the Training & Placement cell portal, (2) Complete the mandatory pre-placement training modules, (3) Upload your resume and academic records, (4) Companies shortlist based on CGPA and test performance, (5) Selected students go through technical interviews, (6) Final HR round and offer letter. The entire process is coordinated by the T&P cell.'
+        },
+        {
+            category: 'placement',
+            question: 'Is there a minimum CGPA required for campus placements?',
+            answer: 'Yes, most companies require a minimum CGPA of 6.5 on a 10-point scale (or 60% aggregate) to be eligible for campus placements. However, requirements vary by company — some mass recruiters accept 6.0 CGPA, while top-tier companies may require 7.5 or above. Students should have no active backlogs at the time of placement. The T&P cell provides a company-wise eligibility matrix at the start of the placement season.'
+        },
+        {
+            category: 'placement',
+            question: 'How do I register for the Training and Placement cell?',
+            answer: 'Registration is done online through the official T&P portal. You need to: (1) Create an account using your college email ID, (2) Fill in your complete academic details (10th, 12th/Diploma, all semester CGPAs), (3) Upload your updated resume in the prescribed format, (4) Add your project and internship details, (5) Submit for verification by the department coordinator. Registration usually opens in the 6th semester. Late registration may incur a fine.'
+        },
+        {
+            category: 'general',
+            question: 'What are the hostel rules and room allocation process?',
+            answer: 'Hostel allocation is based on merit-cum-distance criteria. First-year students are given priority. Rules include: (1) Strict curfew at 10:30 PM (extensions for academic purposes with written permission), (2) No electrical appliances above 500W, (3) Visitors allowed only in the common area with prior permission, (4) Mess attendance is mandatory unless on approved leave, (5) Room inspection conducted monthly. Single rooms are allotted from 2nd year based on CGPA and conduct.'
+        },
+        {
+            category: 'general',
+            question: 'What sports facilities and extracurricular activities are available?',
+            answer: 'The campus offers: Sports — Cricket ground, football field, basketball court, badminton courts (indoor & outdoor), volleyball court, table tennis, athletics track, and a well-equipped gymnasium. Extracurriculars — Technical clubs (coding, robotics, electronics), cultural clubs (music, dance, drama, art), literary societies (debate, quiz, creative writing), NCC, NSS, and student chapters of IEEE, ACM, and other professional bodies. Annual fests include a technical fest and a cultural fest.'
+        },
+        {
+            category: 'general',
+            question: 'How can I access the library and its digital resources?',
+            answer: 'All enrolled students get automatic library membership. Carry your college ID to borrow books (up to 4 at a time, 14-day loan period). The library is open from 8 AM to 10 PM on weekdays and 9 AM to 5 PM on weekends. Digital resources include: IEEE Xplore, Springer, Elsevier ScienceDirect, J-Gate, and NPTEL video lectures. Access credentials are provided at the beginning of each academic year through the library portal.'
+        },
+        {
+            category: 'fees',
+            question: 'What is the fee refund policy if I withdraw admission?',
+            answer: 'As per AICTE/UGC norms: (1) If withdrawal is within 15 days of admission confirmation — full refund minus a processing fee of Rs. 1,000, (2) Between 16-30 days — 90% refund, (3) Between 31-60 days — 80% refund, (4) Between 61-90 days — 50% refund, (5) After 90 days — no refund. The refund is processed within 30 working days of application. Hostel fees follow a similar but separate refund schedule.'
+        },
+        {
+            category: 'fees',
+            question: 'How do I apply for a scholarship or fee concession?',
+            answer: 'Scholarship applications are accepted through the college scholarship portal within the first month of each semester. Available scholarships include: (1) Government merit scholarships (SC/ST/OBC/Minority), (2) College merit-cum-means scholarship (family income below Rs. 2.5L), (3) Toppers scholarship (for department toppers), (4) Alumni-funded scholarships, (5) Industry-sponsored scholarships. Required documents: income certificate, previous mark sheets, Aadhaar copy, bank passbook, and passport photos. The scholarship committee reviews applications and results are declared within 45 days.'
+        },
+        {
+            category: 'fees',
+            question: 'What are the payment options and installment facilities for fees?',
+            answer: 'Fee payment options include: (1) Online payment through the college portal (UPI, net banking, debit/credit card — no extra charges), (2) Demand draft drawn in favor of the college, (3) Cash payment at the accounts counter (only on working days). Installment facility: Students can pay in 2 installments — 60% at the start of the semester and 40% within 60 days. Late payment after the due date attracts a fine of Rs. 100 per day for the first 15 days, and Rs. 200 per day thereafter. Students with pending fees will not be allowed to sit for exams.'
+        }
+    ];
+
+    /* ========================================
+       State
+       ======================================== */
+    const state = {
+        messages: [],
+        isTyping: false,
+        activeFilter: 'all'
+    };
+
+    /* ========================================
+       DOM References
+       ======================================== */
+    const dom = {
+        chatMessages: document.getElementById('chatMessages'),
+        messagesContainer: document.getElementById('messagesContainer'),
+        welcomeCard: document.getElementById('welcomeCard'),
+        chatInput: document.getElementById('chatInput'),
+        sendBtn: document.getElementById('sendBtn'),
+        typingIndicator: document.getElementById('typingIndicator'),
+        faqList: document.getElementById('faqList'),
+        filterBtns: document.querySelectorAll('.filter-btn'),
+        mainNav: document.getElementById('mainNav'),
+        navChat: document.getElementById('navChat'),
+        navFaq: document.getElementById('navFaq'),
+        clearChatBtn: document.getElementById('clearChatBtn'),
+        scrollToChatBtn: document.getElementById('scrollToChatBtn'),
+        toastContainer: document.getElementById('toastContainer')
+    };
+
+    /* ========================================
+       Utility Functions
+       ======================================== */
+    function getTimeString() {
+        return new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    }
+
+    function escapeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function formatAnswer(text) {
+        /* Convert plain text to basic HTML: bold, lists, line breaks */
+        let html = escapeHTML(text);
+        /* Bold: **text** */
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        /* Line breaks to paragraphs */
+        html = html.split('\n\n').map(p => {
+            if (p.startsWith('- ') || p.startsWith('* ')) {
+                const items = p.split('\n').map(li => li.replace(/^[-*]\s+/, ''));
+                return '<ul>' + items.map(i => `<li>${i}</li>`).join('') + '</ul>';
+            }
+            if (/^\d+\.\s/.test(p)) {
+                const items = p.split('\n').map(li => li.replace(/^\d+\.\s+/, ''));
+                return '<ol>' + items.map(i => `<li>${i}</li>`).join('') + '</ol>';
+            }
+            return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+        }).join('');
+        return html;
+    }
+
+    function showToast(message, type = 'error') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<i class="fas fa-circle-exclamation"></i><span>${escapeHTML(message)}</span>`;
+        dom.toastContainer.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'toastOut 0.3s ease-in forwards';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    function autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+
+    /* ========================================
+       Chat Functions
+       ======================================== */
+    function hideWelcome() {
+        if (dom.welcomeCard) {
+            dom.welcomeCard.style.display = 'none';
+        }
+    }
+
+    function showWelcome() {
+        if (dom.welcomeCard) {
+            dom.welcomeCard.style.display = '';
+        }
+    }
+
+    function addMessageToDOM(role, content, isError = false) {
+        const time = getTimeString();
+        const row = document.createElement('div');
+        row.className = `message-row ${role}`;
+
+        if (role === 'ai') {
+            row.innerHTML = `
+                <div class="message-avatar ai-avatar">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <div class="message-bubble ${isError ? 'error-bubble' : ''}">${isError ? escapeHTML(content) : formatAnswer(content)}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+            `;
+        } else {
+            row.innerHTML = `
+                <div>
+                    <div class="message-bubble">${escapeHTML(content)}</div>
+                    <div class="message-time">${time}</div>
+                </div>
+                <div class="message-avatar user-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+            `;
+        }
+        dom.messagesContainer.appendChild(row);
+        scrollToBottom();
+    }
+
+    function showTypingIndicator() {
+        state.isTyping = true;
+        dom.typingIndicator.classList.add('visible');
+        scrollToBottom();
+    }
+
+    function hideTypingIndicator() {
+        state.isTyping = false;
+        dom.typingIndicator.classList.remove('visible');
+    }
+
+    function scrollToBottom() {
+        requestAnimationFrame(() => {
+            dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight;
+        });
+    }
+
+    function updateSendButton() {
+        const hasText = dom.chatInput.value.trim().length > 0;
+        dom.sendBtn.disabled = !hasText || state.isTyping;
+    }
+
+    async function sendMessage(text) {
+        if (!text.trim() || state.isTyping) return;
+
+        const question = text.trim();
+        dom.chatInput.value = '';
+        autoResize(dom.chatInput);
+        updateSendButton();
+
+        hideWelcome();
+        addMessageToDOM('user', question);
+        state.messages.push({ role: 'user', content: question });
+
+        showTypingIndicator();
+
+        try {
+            const response = await fetch('/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.error) {
+                addMessageToDOM('ai', data.error, true);
+            } else {
+                addMessageToDOM('ai', data.answer);
+                state.messages.push({ role: 'ai', content: data.answer });
+            }
+        } catch (err) {
+            console.error('Error:', err);
+            addMessageToDOM('ai', 'Unable to connect to the server. Please make sure the backend is running and try again.', true);
+        }
+
+        hideTypingIndicator();
+    }
+
+    function sendQuickAction(chipEl) {
+        const text = chipEl.textContent.trim();
+        sendMessage(text);
+    }
+
+    function askFromFAQ(question) {
+        sendMessage(question);
+    }
+
+    function clearChat() {
+        state.messages = [];
+        dom.messagesContainer.innerHTML = '';
+        showWelcome();
+        dom.chatInput.focus();
+    }
+
+    /* ========================================
+       FAQ Functions
+       ======================================== */
+    function renderFAQ() {
+        dom.faqList.innerHTML = '';
+        const filtered = state.activeFilter === 'all'
+            ? faqData
+            : faqData.filter(item => item.category === state.activeFilter);
+
+        filtered.forEach((item, idx) => {
+            const faqItem = document.createElement('div');
+            faqItem.className = 'faq-item reveal';
+            faqItem.dataset.index = idx;
+            faqItem.innerHTML = `
+                <div class="faq-question" role="button" tabindex="0" aria-expanded="false">
+                    <span class="faq-question-text">${escapeHTML(item.question)}</span>
+                    <div class="faq-question-right">
+                        <span class="faq-category-tag ${item.category}">${item.category}</span>
+                        <div class="faq-chevron"><i class="fas fa-chevron-down"></i></div>
+                    </div>
+                </div>
+                <div class="faq-answer-wrap">
+                    <div class="faq-answer">
+                        ${item.answer}
+                        <br>
+                        <button class="faq-ask-btn" onclick="askFromFAQ(${JSON.stringify(item.question).replace(/"/g, '&quot;')})">
+                            <i class="fas fa-paper-plane" style="font-size:11px;"></i>
+                            Ask AI for more details
+                        </button>
+                    </div>
+                </div>
+            `;
+            dom.faqList.appendChild(faqItem);
+        });
+
+        /* Trigger reveal animation */
+        requestAnimationFrame(() => {
+            dom.faqList.querySelectorAll('.reveal').forEach((el, i) => {
+                setTimeout(() => el.classList.add('visible'), i * 60);
+            });
+        });
+
+        /* Attach click listeners */
+        dom.faqList.querySelectorAll('.faq-question').forEach(q => {
+            q.addEventListener('click', () => toggleFAQItem(q));
+            q.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleFAQItem(q);
+                }
+            });
+        });
+    }
+
+    function toggleFAQItem(questionEl) {
+        const faqItem = questionEl.closest('.faq-item');
+        const isActive = faqItem.classList.contains('active');
+
+        /* Close all others */
+        dom.faqList.querySelectorAll('.faq-item.active').forEach(item => {
+            item.classList.remove('active');
+            item.querySelector('.faq-question').setAttribute('aria-expanded', 'false');
+        });
+
+        /* Toggle clicked */
+        if (!isActive) {
+            faqItem.classList.add('active');
+            questionEl.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    function filterFAQ(category) {
+        state.activeFilter = category;
+        dom.filterBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.filter === category);
+        });
+        renderFAQ();
+    }
+
+    /* ========================================
+       Scroll Effects
+       ======================================== */
+    function scrollToChat() {
+        document.getElementById('chat').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function scrollToFAQ() {
+        document.getElementById('faq').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function handleScroll() {
+        const scrollY = window.scrollY;
+        const faqTop = document.getElementById('faq').offsetTop - 200;
+
+        /* Nav scrolled state */
+        dom.mainNav.classList.toggle('scrolled', scrollY > 20);
+
+        /* Active nav link */
+        dom.navChat.classList.toggle('active', scrollY < faqTop);
+        dom.navFaq.classList.toggle('active', scrollY >= faqTop);
+
+        /* Scroll to chat button visibility */
+        dom.scrollToChatBtn.classList.toggle('visible', scrollY > window.innerHeight * 0.6);
+    }
+
+    /* ========================================
+       Event Listeners
+       ======================================== */
+    dom.sendBtn.addEventListener('click', () => {
+        sendMessage(dom.chatInput.value);
+    });
+
+    dom.chatInput.addEventListener('input', () => {
+        autoResize(dom.chatInput);
+        updateSendButton();
+    });
+
+    dom.chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (!dom.sendBtn.disabled) {
+                sendMessage(dom.chatInput.value);
+            }
+        }
+    });
+
+    dom.clearChatBtn.addEventListener('click', clearChat);
+    dom.scrollToChatBtn.addEventListener('click', scrollToChat);
+
+    dom.filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => filterFAQ(btn.dataset.filter));
+    });
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    /* Reveal observer for section elements */
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.faq-header, .faq-filters').forEach(el => {
+        revealObserver.observe(el);
+    });
+
+    /* ========================================
+       Initialize
+       ======================================== */
+    function init() {
+        renderFAQ();
+        updateSendButton();
+        dom.chatInput.focus();
+    }
+
+    init();
+    </script>
+</body>
+</html>
